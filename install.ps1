@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  小鲸球 (dsh-whale-ball) - DeepSeek Harness 桌面悬浮球
 #  一键安装脚本
 #
@@ -52,7 +52,9 @@ if ($appCandidates.Count -eq 0) {
     Write-Host "  powershell -ExecutionPolicy Bypass -File .\install.ps1 -AppDir ""D:\你的路径\resources\app""" -ForegroundColor Yellow
     exit 1
 }
-$appDir = $appCandidates[0]
+# 注意：候选过滤后只剩一个元素时会被解包成标量，[0] 会取到字符串首字符，
+# 因此这里用 Select-Object -First 1 保证拿到完整路径。
+$appDir = $appCandidates | Select-Object -First 1
 if ($appCandidates.Count -gt 1) {
     Write-Host "检测到多个候选目录，使用: $appDir" -ForegroundColor DarkGray
 }
