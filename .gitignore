@@ -1,0 +1,27 @@
+# --- Node ---
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- 系统/编辑器 ---
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+
+# --- 备份与临时文件 ---
+*.bak
+*.tmp
+*.orig
+*.log
+
+# --- 本地构建产物 ---
+dist/
+build/
+out/
+
+# --- 本地环境 ---
+.env
+.env.local
