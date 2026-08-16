@@ -271,24 +271,30 @@ function ballPage () {
   #wrap { position:absolute; inset:0; }
 
   /* -------- 拖动区：整个球体（drag，OS 级拖动） -------- */
+  /* 透明玻璃磨砂：基本不填色，白色高光 + 细磨砂噪点 + 玻璃边缘 */
   #ring {
     position:absolute; inset:0; margin:auto;
     width:${MINI_BALL_SIZE - 20}px; height:${MINI_BALL_SIZE - 20}px;
     border-radius:50%;
-    background:
-      radial-gradient(circle at 30% 25%, rgba(255,255,255,.55), rgba(255,255,255,.08) 34%, transparent 58%),
-      radial-gradient(circle at 50% 115%, rgba(255,255,255,.16), transparent 55%),
-      linear-gradient(145deg, rgba(90,120,220,.55), rgba(30,40,90,.72) 60%, rgba(15,20,45,.85));
+    background-color:rgba(255,255,255,.045);
+    background-image:
+      radial-gradient(circle at 30% 22%, rgba(255,255,255,.30), rgba(255,255,255,.07) 42%, transparent 74%),
+      radial-gradient(circle at 50% 118%, rgba(255,255,255,.10), transparent 62%),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/></svg>");
+    border:1px solid rgba(255,255,255,.38);
     box-shadow:
-      inset 0 2px 8px rgba(255,255,255,.28),
-      inset 0 -6px 14px rgba(0,0,20,.4),
-      0 8px 28px rgba(0,0,0,.45),
-      0 0 0 1px rgba(255,255,255,.06);
+      inset 0 1px 5px rgba(255,255,255,.22),
+      inset 0 -3px 8px rgba(255,255,255,.05),
+      0 1px 6px rgba(0,0,0,.12);
     -webkit-app-region:drag;
-    transition:transform .16s ease, box-shadow .2s ease;
+    transition:transform .16s ease, box-shadow .2s ease, border-color .2s ease;
   }
-  /* 悬停：整个球放大 */
-  #wrap:hover #ring { transform:scale(1.12); box-shadow:0 10px 32px rgba(0,0,0,.55), inset 0 2px 8px rgba(255,255,255,.3); }
+  /* 悬停：整个球微微放大、边缘更亮 */
+  #wrap:hover #ring {
+    transform:scale(1.10);
+    border-color:rgba(255,255,255,.52);
+    box-shadow:inset 0 1px 6px rgba(255,255,255,.28), inset 0 -3px 8px rgba(255,255,255,.06), 0 1px 8px rgba(0,0,0,.16);
+  }
 
   /* -------- 中心点击区（no-drag，点击/右键） -------- */
   #hit {
@@ -299,11 +305,11 @@ function ballPage () {
     -webkit-app-region:no-drag;
     display:flex; align-items:center; justify-content:center;
     z-index:2;
-    background:rgba(0,0,0,.14);
-    box-shadow:inset 0 1px 4px rgba(0,0,0,.3);
+    background:rgba(255,255,255,.05);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);
     transition:background .15s ease, transform .12s ease;
   }
-  #hit:hover { background:rgba(255,255,255,.14); }
+  #hit:hover { background:rgba(255,255,255,.15); }
   #hit:active { transform:scale(.9); }
 
   /* -------- DeepSeek 经典鲸鱼 logo -------- */
@@ -311,7 +317,7 @@ function ballPage () {
     width:22px; height:22px;
     pointer-events:none;
     display:block;
-    filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));
+    filter:drop-shadow(0 1px 2px rgba(0,0,0,.35));
   }
   #logo path { fill:#fff; }
 </style></head>
@@ -362,6 +368,10 @@ function showBall () {
     y: workArea.y + workArea.height - MINI_BALL_SIZE - 48,
     frame: false,
     transparent: true,
+    // 显式透明底色，避免默认背景闪白/透出方框；关闭 Win11 圆角合成，
+    // 消除无边框透明窗口外围的方形光晕。
+    backgroundColor: '#00000000',
+    roundedCorners: false,
     resizable: false,
     movable: true,
     alwaysOnTop: true,
