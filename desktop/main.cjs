@@ -262,6 +262,8 @@ const miniNotifiedAt = new Map()
 const MINI_NOTIFY_DEDUPE_MS = 3000
 /** Long-press drag: pointer offset relative to the ball window's top-left. */
 let miniDragOffset = null
+/** Long-press drag: interval that polls the cursor and moves the ball. */
+let miniDragTimer = null
 
 /** The ball page: a glassmorphism ball with the DeepSeek whale logo centered. */
 function ballPage () {
@@ -297,6 +299,14 @@ function ballPage () {
     transform:scale(1.10);
     border-color:rgba(255,255,255,.52);
     box-shadow:inset 0 1px 6px rgba(255,255,255,.28), inset 0 -3px 8px rgba(255,255,255,.06), 0 1px 8px rgba(0,0,0,.16);
+  }
+  /* 拖动期间：关闭放大动画与过渡，避免移动窗口时额外重绘造成卡顿 */
+  body.dragging #ring,
+  body.dragging #hit { transition:none !important; }
+  body.dragging #wrap:hover #ring {
+    transform:none;
+    border-color:rgba(255,255,255,.38);
+    box-shadow:inset 0 1px 5px rgba(255,255,255,.22), inset 0 -3px 8px rgba(255,255,255,.05), 0 1px 6px rgba(0,0,0,.12);
   }
 
   /* -------- 中心 logo 装饰区（纯装饰，不拦截事件，交互在整个球上） -------- */
@@ -343,25 +353,32 @@ function ballPage () {
         e.preventDefault()
         dragging = false
         clearTimeout(pressTimer)
-        ring.setPointerCapture(e.pointerId) // 捕获指针：拖出小球也能继续跟手
-        window.miniWindow.dragStart(e.screenX, e.screenY) // 记录按下点偏移
-        pressTimer = setTimeout(function () { dragging = true }, PRESS_MS)
-      })
-
-      ring.addEventListener('pointermove', function (e) {
-        if (!dragging) return
-        window.miniWindow.dragMove(e.screenX, e.screenY)
+        ring.setPointerCapture(e.pointerId) // 捕获指针：即使指针滑出小球也认得松手
+        pressTimer = setTimeout(function () {
+          dragging = true
+          document.body.classList.add('dragging') // 关闭放大动画
+          window.miniWindow.dragBegin()           // 主进程接管：轮询鼠标搬动窗口
+        }, PRESS_MS)
       })
 
       ring.addEventListener('pointerup', function (e) {
         clearTimeout(pressTimer)
-        if (dragging) { dragging = false; return } // 刚结束一次拖动，不算点击
-        window.miniWindow.click()                  // 短按 = 点击进入
+        if (dragging) {
+          dragging = false
+          document.body.classList.remove('dragging')
+          window.miniWindow.dragEnd() // 结束拖动
+          return
+        }
+        window.miniWindow.click()     // 短按 = 点击进入
       })
 
       ring.addEventListener('pointercancel', function () {
         clearTimeout(pressTimer)
-        dragging = false
+        if (dragging) {
+          dragging = false
+          document.body.classList.remove('dragging')
+          window.miniWindow.dragEnd()
+        }
       })
 
       ring.addEventListener('contextmenu', function (e) {
@@ -378,6 +395,20 @@ function miniRenderBadge () {
   if (ball === null || ball.isDestroyed()) return
   // The simplified glass ball is static; nothing to update per state.
   void miniState
+}
+
+/**
+ * One long-press drag tick: move the ball so the grabbed point follows the
+ * cursor. Polled on an interval instead of streaming per-move IPC — that
+ * avoids IPC storms and the visible hitch when a transparent window moves.
+ */
+function miniDragTick () {
+  if (ball === null || ball.isDestroyed() || miniDragOffset === null) return
+  const p = screen.getCursorScreenPoint()
+  const x = Math.round(p.x - miniDragOffset.x)
+  const y = Math.round(p.y - miniDragOffset.y)
+  const [cx, cy] = ball.getPosition()
+  if (x !== cx || y !== cy) ball.setPosition(x, y)
 }
 
 /** Show the floating ball (creates the window on first use). */
@@ -421,11 +452,11 @@ function showBall () {
 
   ball.on('closed', () => { ball = null })
 
-  // The ball page calls window.miniWindow.click()/menu()/dragStart()/
-  // dragMove() via the preload bridge; all arrive here as IPC. Dragging is
-  // long-press based: the page decides when a press becomes a drag and
-  // streams screen coordinates here, so no before-input-event heuristics
-  // are needed.
+  // The ball page calls window.miniWindow.click()/menu()/dragBegin()/
+  // dragEnd() via the preload bridge. Long-press drag is driven by the main
+  // process polling screen.getCursorScreenPoint() on an interval (see
+  // miniDragTick), so no per-move IPC or before-input-event heuristics are
+  // needed.
 
   // did-finish-load: seed the badge.
   ball.webContents.on('did-finish-load', () => {
@@ -700,15 +731,21 @@ else {
       showBallMenu()
     })
 
-    // 长按拖动：按下时记录指针相对球窗口的偏移，之后移动时据此搬动窗口。
-    ipcMain.on('dsh-mini:drag-start', (_event, screenX, screenY) => {
+    // 长按拖动：渲染进程只在“开始/结束”发两个消息；主进程用定时器轮询
+    // 鼠标位置（screen.getCursorScreenPoint）来搬动窗口，避免高频 IPC +
+    // 高频 setPosition 造成的卡顿。
+    ipcMain.on('dsh-mini:drag-begin', () => {
       if (ball === null || ball.isDestroyed()) return
+      const p = screen.getCursorScreenPoint()
       const [x, y] = ball.getPosition()
-      miniDragOffset = { x: screenX - x, y: screenY - y }
+      miniDragOffset = { x: p.x - x, y: p.y - y }
+      if (miniDragTimer !== null) clearInterval(miniDragTimer)
+      miniDragTimer = setInterval(miniDragTick, 16)
+      miniDragTimer.unref?.()
     })
-    ipcMain.on('dsh-mini:drag-move', (_event, screenX, screenY) => {
-      if (ball === null || ball.isDestroyed() || miniDragOffset === null) return
-      ball.setPosition(Math.round(screenX - miniDragOffset.x), Math.round(screenY - miniDragOffset.y))
+    ipcMain.on('dsh-mini:drag-end', () => {
+      if (miniDragTimer !== null) { clearInterval(miniDragTimer); miniDragTimer = null }
+      miniDragOffset = null
     })
 
     // Main-window native bridge (via mini-main-preload.cjs): lets the harness

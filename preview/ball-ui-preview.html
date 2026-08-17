@@ -54,6 +54,14 @@
     border-color: rgba(255,255,255,.52);
     box-shadow: inset 0 1px 6px rgba(255,255,255,.28), inset 0 -3px 8px rgba(255,255,255,.06), 0 1px 8px rgba(0,0,0,.16);
   }
+  /* 拖动期间：关闭放大动画与过渡，避免移动时额外重绘造成卡顿 */
+  body.dragging #ring,
+  body.dragging #hit { transition: none !important; }
+  body.dragging #wrap:hover #ring {
+    transform: none;
+    border-color: rgba(255,255,255,.38);
+    box-shadow: inset 0 1px 5px rgba(255,255,255,.22), inset 0 -3px 8px rgba(255,255,255,.05), 0 1px 6px rgba(0,0,0,.12);
+  }
 
   /* 中心 logo 装饰区（纯装饰，不拦截事件，交互在整个球上） */
   #hit {
@@ -120,7 +128,10 @@
       ring.setPointerCapture(e.pointerId)
       offsetX = e.clientX - wrap.offsetLeft
       offsetY = e.clientY - wrap.offsetTop
-      pressTimer = setTimeout(function () { dragging = true }, PRESS_MS)
+      pressTimer = setTimeout(function () {
+        dragging = true
+        document.body.classList.add('dragging')
+      }, PRESS_MS)
     })
 
     ring.addEventListener('pointermove', function (e) {
@@ -131,13 +142,20 @@
 
     ring.addEventListener('pointerup', function () {
       clearTimeout(pressTimer)
-      if (dragging) { dragging = false; return }
+      if (dragging) {
+        dragging = false
+        document.body.classList.remove('dragging')
+        return
+      }
       alert('点击进入（预览模拟）')
     })
 
     ring.addEventListener('pointercancel', function () {
       clearTimeout(pressTimer)
-      dragging = false
+      if (dragging) {
+        dragging = false
+        document.body.classList.remove('dragging')
+      }
     })
 
     ring.addEventListener('contextmenu', function (e) {
