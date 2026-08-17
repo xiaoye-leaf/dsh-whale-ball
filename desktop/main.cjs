@@ -38,6 +38,7 @@ const DIAGNOSTIC_LINES = 60
 // ---------------------------------------------------------------------------
 const MINI_BALL_SIZE = 76 // window square px (visual ball ~56px + halo room)
 const MINI_POLL_MS = 2000 // session.list poll interval
+const MINI_DRAG_MS = 8 // drag cursor poll interval (125Hz, matches typical mice)
 /** Restore-to-fullscreen on single click; false restores a normal window. */
 const MINI_FULLSCREEN_ON_CLICK = true
 /** Keep the ball visible even when the main window is shown. */
@@ -399,8 +400,9 @@ function miniRenderBadge () {
 
 /**
  * One long-press drag tick: move the ball so the grabbed point follows the
- * cursor. Polled on an interval instead of streaming per-move IPC — that
- * avoids IPC storms and the visible hitch when a transparent window moves.
+ * cursor. Polled on an 8ms interval (MINI_DRAG_MS, ~125Hz) instead of
+ * streaming per-move IPC — that avoids IPC storms and the visible hitch when
+ * a transparent window moves, while still tracking fast mouse movements.
  */
 function miniDragTick () {
   if (ball === null || ball.isDestroyed() || miniDragOffset === null) return
@@ -740,7 +742,9 @@ else {
       const [x, y] = ball.getPosition()
       miniDragOffset = { x: p.x - x, y: p.y - y }
       if (miniDragTimer !== null) clearInterval(miniDragTimer)
-      miniDragTimer = setInterval(miniDragTick, 16)
+      // 立即先跟一次，再按 8ms(125Hz) 轮询：与鼠标采样同频，快速移动不再掉队。
+      miniDragTick()
+      miniDragTimer = setInterval(miniDragTick, MINI_DRAG_MS)
       miniDragTimer.unref?.()
     })
     ipcMain.on('dsh-mini:drag-end', () => {
