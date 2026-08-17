@@ -143,7 +143,8 @@ Write-Host "  mini-main-preload.cjs: $(if ($LASTEXITCODE -eq 0) {'OK'} else {'ER
 Write-Host ""
 Write-Host "安装完成！请重启 DeepSeek Harness。" -ForegroundColor Green
 Write-Host "  - 最小化 -> 小鲸球出现（任务栏入口保留）"
-Write-Host "  - 点击球心 -> 恢复并全屏"
+Write-Host "  - 单击小球 -> 恢复并全屏；长按约 0.4 秒 -> 拖动"
+Write-Host "  - 关闭主窗口 -> 整个应用（含悬浮球）一起退出"
 Write-Host "  - 页面内按钮可同时退出页面级与窗口级全屏"
 Write-Host "  - 任务完成 / 需要确认时弹出系统通知"
 Write-Host ""

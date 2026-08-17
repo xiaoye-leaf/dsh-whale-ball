@@ -260,6 +260,8 @@ let miniAnyRunning = false
 const miniNotifiedAt = new Map()
 /** Skip a completion notification if one fired within this window. */
 const MINI_NOTIFY_DEDUPE_MS = 3000
+/** Long-press drag: pointer offset relative to the ball window's top-left. */
+let miniDragOffset = null
 
 /** The ball page: a glassmorphism ball with the DeepSeek whale logo centered. */
 function ballPage () {
@@ -270,7 +272,7 @@ function ballPage () {
                user-select:none; -webkit-user-select:none; }
   #wrap { position:absolute; inset:0; }
 
-  /* -------- 拖动区：整个球体（drag，OS 级拖动） -------- */
+  /* -------- 整个球：点击进入，长按（约 0.4 秒）拖动 -------- */
   /* 透明玻璃磨砂：基本不填色，白色高光 + 细磨砂噪点 + 玻璃边缘 */
   #ring {
     position:absolute; inset:0; margin:auto;
@@ -286,7 +288,8 @@ function ballPage () {
       inset 0 1px 5px rgba(255,255,255,.22),
       inset 0 -3px 8px rgba(255,255,255,.05),
       0 1px 6px rgba(0,0,0,.12);
-    -webkit-app-region:drag;
+    cursor:pointer;
+    touch-action:none;
     transition:transform .16s ease, box-shadow .2s ease, border-color .2s ease;
   }
   /* 悬停：整个球微微放大、边缘更亮 */
@@ -296,13 +299,12 @@ function ballPage () {
     box-shadow:inset 0 1px 6px rgba(255,255,255,.28), inset 0 -3px 8px rgba(255,255,255,.06), 0 1px 8px rgba(0,0,0,.16);
   }
 
-  /* -------- 中心点击区（no-drag，点击/右键） -------- */
+  /* -------- 中心 logo 装饰区（交互统一在整个球上） -------- */
   #hit {
     position:absolute; inset:0; margin:auto;
     width:34px; height:34px;
     border-radius:50%;
     cursor:pointer;
-    -webkit-app-region:no-drag;
     display:flex; align-items:center; justify-content:center;
     z-index:2;
     background:rgba(255,255,255,.05);
@@ -324,7 +326,7 @@ function ballPage () {
 <body>
   <div id="wrap">
     <div id="ring"></div>
-    <div id="hit" title="恢复并全屏">
+    <div id="hit" title="点击进入 · 长按拖动">
         <svg id="logo" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M48.8354 10.0479C48.3232 9.79199 48.1025 10.2798 47.8032 10.5278C47.7007 10.6079 47.6143 10.7119 47.5273 10.8076C46.7793 11.624 45.9048 12.1597 44.7622 12.0957C43.0923 12 41.666 12.5356 40.4058 13.8398C40.1377 12.2319 39.2476 11.272 37.8926 10.6558C37.1836 10.3359 36.4668 10.0156 35.9702 9.31982C35.6235 8.82373 35.5293 8.27197 35.356 7.72754C35.2456 7.3999 35.1353 7.06396 34.7651 7.00781C34.3633 6.94385 34.2056 7.2876 34.0479 7.57568C33.418 8.75195 33.1733 10.0479 33.1973 11.3599C33.2524 14.312 34.4736 16.6641 36.8999 18.3359C37.1758 18.5278 37.2466 18.7197 37.1597 19C36.9946 19.5757 36.7974 20.1357 36.624 20.7119C36.5137 21.0801 36.3486 21.1597 35.9624 21C34.6309 20.4321 33.481 19.5918 32.4644 18.5757C30.7393 16.8721 29.1792 14.9917 27.2334 13.52C26.7764 13.1758 26.3193 12.856 25.8467 12.5518C23.8618 10.584 26.1069 8.96777 26.627 8.77588C27.1704 8.57568 26.8159 7.8877 25.0591 7.896C23.3022 7.90381 21.6953 8.50391 19.647 9.30371C19.3477 9.42383 19.0322 9.51172 18.7095 9.58398C16.8501 9.22363 14.9199 9.14355 12.9033 9.37598C9.10596 9.80762 6.07275 11.6396 3.84326 14.7681C1.16455 18.5278 0.53418 22.7998 1.30664 27.2559C2.11768 31.9521 4.46582 35.8398 8.07373 38.8799C11.8159 42.0322 16.1255 43.5762 21.041 43.2803C24.0269 43.104 27.3516 42.6963 31.1016 39.4561C32.0469 39.936 33.0396 40.1279 34.686 40.272C35.9546 40.3921 37.1758 40.208 38.1211 40.0078C39.6021 39.688 39.4995 38.2881 38.9639 38.0322C34.623 35.9678 35.5762 36.8081 34.71 36.1279C36.9155 33.4639 40.2402 30.6958 41.54 21.728C41.6426 21.0161 41.5557 20.5679 41.54 19.9917C41.5322 19.6396 41.6108 19.5039 42.0049 19.4639C43.0923 19.3359 44.1479 19.0317 45.1167 18.4878C47.9292 16.9199 49.064 14.3438 49.3315 11.2559C49.3711 10.7837 49.3237 10.2959 48.8354 10.0479ZM24.3262 37.8398C20.1196 34.4639 18.0791 33.3521 17.2358 33.3999C16.4482 33.4482 16.5898 34.3682 16.7632 34.9678C16.9443 35.5601 17.1812 35.9683 17.5117 36.4878C17.7402 36.832 17.8979 37.3442 17.2832 37.728C15.9282 38.584 13.5728 37.4399 13.4624 37.3838C10.7207 35.7358 8.42822 33.5601 6.81348 30.584C5.25342 27.7197 4.34766 24.6479 4.19775 21.3677C4.1582 20.5757 4.38672 20.2959 5.15869 20.1519C6.17529 19.96 7.22314 19.9199 8.23926 20.0718C12.5327 20.7119 16.1885 22.6719 19.2529 25.7759C21.002 27.5439 22.3252 29.6558 23.6885 31.7202C25.1377 33.9121 26.6978 36 28.6831 37.7119C29.3843 38.312 29.9434 38.7681 30.479 39.104C28.8643 39.2881 26.1699 39.3281 24.3262 37.8398ZM26.3433 24.6001C26.3433 24.248 26.6191 23.9678 26.9658 23.9678C27.0444 23.9678 27.1152 23.9839 27.1782 24.0078C27.2651 24.04 27.3438 24.0879 27.4067 24.1602C27.5171 24.272 27.5801 24.4321 27.5801 24.6001C27.5801 24.9521 27.3042 25.2319 26.9575 25.2319C26.6108 25.2319 26.3433 24.9521 26.3433 24.6001ZM32.6064 27.8799C32.2046 28.0479 31.8027 28.1919 31.4165 28.208C30.8179 28.2397 30.1641 27.9922 29.8096 27.688C29.2583 27.2158 28.8643 26.9521 28.6987 26.1279C28.6279 25.7759 28.6675 25.2319 28.7305 24.9199C28.8721 24.248 28.7144 23.8159 28.2495 23.4238C27.8716 23.104 27.3911 23.0161 26.8633 23.0161C26.666 23.0161 26.4849 22.9277 26.3511 22.856C26.1304 22.7441 25.9492 22.4639 26.1226 22.1201C26.1777 22.0078 26.4458 21.7358 26.5088 21.688C27.2256 21.272 28.0527 21.4077 28.8169 21.7197C29.5259 22.0161 30.0615 22.5601 30.834 23.3281C31.6216 24.2559 31.7632 24.5117 32.2124 25.208C32.5669 25.752 32.8901 26.312 33.1104 26.9521C33.2446 27.3521 33.0713 27.6802 32.6064 27.8799Z" fill="#fff" fill-opacity="1"/>
         </svg>
@@ -332,12 +334,39 @@ function ballPage () {
   </div>
   <script>
     (function () {
-      var hit = document.getElementById('hit')
-      hit.addEventListener('click', function (e) {
-        e.preventDefault(); e.stopPropagation()
-        window.miniWindow.click()
+      var ring = document.getElementById('ring')
+      // 长按阈值：按下超过该时长视为“拖动”，否则松手是“点击进入”
+      var PRESS_MS = 380
+      var pressTimer = null
+      var dragging = false
+
+      ring.addEventListener('pointerdown', function (e) {
+        if (e.button !== 0) return          // 只处理左键（右键走 contextmenu）
+        e.preventDefault()
+        dragging = false
+        clearTimeout(pressTimer)
+        ring.setPointerCapture(e.pointerId) // 捕获指针：拖出小球也能继续跟手
+        window.miniWindow.dragStart(e.screenX, e.screenY) // 记录按下点偏移
+        pressTimer = setTimeout(function () { dragging = true }, PRESS_MS)
       })
-      hit.addEventListener('contextmenu', function (e) {
+
+      ring.addEventListener('pointermove', function (e) {
+        if (!dragging) return
+        window.miniWindow.dragMove(e.screenX, e.screenY)
+      })
+
+      ring.addEventListener('pointerup', function (e) {
+        clearTimeout(pressTimer)
+        if (dragging) { dragging = false; return } // 刚结束一次拖动，不算点击
+        window.miniWindow.click()                  // 短按 = 点击进入
+      })
+
+      ring.addEventListener('pointercancel', function () {
+        clearTimeout(pressTimer)
+        dragging = false
+      })
+
+      ring.addEventListener('contextmenu', function (e) {
         e.preventDefault(); e.stopPropagation()
         window.miniWindow.menu()
       })
@@ -394,10 +423,11 @@ function showBall () {
 
   ball.on('closed', () => { ball = null })
 
-  // The page's center button calls window.miniWindow.click()/menu() via the
-  // preload bridge; both arrive here as IPC. Clicks on the outer ring are
-  // consumed by the OS drag (that is the drag handle), so no click logic
-  // lives in the main process — no before-input-event heuristics needed.
+  // The ball page calls window.miniWindow.click()/menu()/dragStart()/
+  // dragMove() via the preload bridge; all arrive here as IPC. Dragging is
+  // long-press based: the page decides when a press becomes a drag and
+  // streams screen coordinates here, so no before-input-event heuristics
+  // are needed.
 
   // did-finish-load: seed the badge.
   ball.webContents.on('did-finish-load', () => {
@@ -606,6 +636,11 @@ function createWindow () {
   window.on('show', () => {
     if (!MINI_BALL_ALWAYS) hideBall()
   })
+  // 从任务栏恢复窗口时可能只触发 restore 而不触发 show，这里一并隐藏悬浮球，
+  // 保证“进入程序页面悬浮球就消失”。
+  window.on('restore', () => {
+    if (!MINI_BALL_ALWAYS) hideBall()
+  })
   // 主窗口被关闭 = 整个应用退出。悬浮球只是最小化时的入口，不能让它
   // 常驻：否则主窗口销毁后（window = null）点击悬浮球无法恢复窗口，
   // 而悬浮球不关，应用又不会因“所有窗口关闭”而退出，只能手动杀进程。
@@ -665,6 +700,17 @@ else {
     })
     ipcMain.on('dsh-mini:menu', () => {
       showBallMenu()
+    })
+
+    // 长按拖动：按下时记录指针相对球窗口的偏移，之后移动时据此搬动窗口。
+    ipcMain.on('dsh-mini:drag-start', (_event, screenX, screenY) => {
+      if (ball === null || ball.isDestroyed()) return
+      const [x, y] = ball.getPosition()
+      miniDragOffset = { x: screenX - x, y: screenY - y }
+    })
+    ipcMain.on('dsh-mini:drag-move', (_event, screenX, screenY) => {
+      if (ball === null || ball.isDestroyed() || miniDragOffset === null) return
+      ball.setPosition(Math.round(screenX - miniDragOffset.x), Math.round(screenY - miniDragOffset.y))
     })
 
     // Main-window native bridge (via mini-main-preload.cjs): lets the harness
