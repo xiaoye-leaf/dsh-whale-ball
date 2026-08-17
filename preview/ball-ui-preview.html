@@ -110,8 +110,9 @@
     var wrap = document.getElementById('wrap')
     var stage = document.querySelector('.stage')
     var ring = document.getElementById('ring')
-    var PRESS_MS = 380
-    var pressTimer = null, dragging = false, offsetX = 0, offsetY = 0
+    var CLICK_RADIUS = 5
+    var CLICK_MS = 400
+    var downX = 0, downY = 0, downT = 0, offsetX = 0, offsetY = 0
 
     function centerWrap () {
       wrap.style.left = Math.round((stage.clientWidth - wrap.offsetWidth) / 2) + 'px'
@@ -123,39 +124,29 @@
     ring.addEventListener('pointerdown', function (e) {
       if (e.button !== 0) return
       e.preventDefault()
-      dragging = false
-      clearTimeout(pressTimer)
+      downX = e.clientX; downY = e.clientY; downT = Date.now()
       ring.setPointerCapture(e.pointerId)
       offsetX = e.clientX - wrap.offsetLeft
       offsetY = e.clientY - wrap.offsetTop
-      pressTimer = setTimeout(function () {
-        dragging = true
-        document.body.classList.add('dragging')
-      }, PRESS_MS)
+      document.body.classList.add('dragging') // 按下即跟随，无 380ms 等待
     })
 
     ring.addEventListener('pointermove', function (e) {
-      if (!dragging) return
+      // 模拟主进程轮询：按下即拖
       wrap.style.left = (e.clientX - offsetX) + 'px'
       wrap.style.top = (e.clientY - offsetY) + 'px'
     })
 
-    ring.addEventListener('pointerup', function () {
-      clearTimeout(pressTimer)
-      if (dragging) {
-        dragging = false
-        document.body.classList.remove('dragging')
-        return
-      }
-      alert('点击进入（预览模拟）')
+    ring.addEventListener('pointerup', function (e) {
+      var moved = Math.hypot(e.clientX - downX, e.clientY - downY) > CLICK_RADIUS
+      var quick = (Date.now() - downT) <= CLICK_MS
+      document.body.classList.remove('dragging')
+      if (!moved && quick) alert('点击进入（预览模拟）')
+      // 否则 = 拖动完成
     })
 
     ring.addEventListener('pointercancel', function () {
-      clearTimeout(pressTimer)
-      if (dragging) {
-        dragging = false
-        document.body.classList.remove('dragging')
-      }
+      document.body.classList.remove('dragging')
     })
 
     ring.addEventListener('contextmenu', function (e) {

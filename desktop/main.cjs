@@ -344,42 +344,33 @@ function ballPage () {
   <script>
     (function () {
       var ring = document.getElementById('ring')
-      // 长按阈值：按下超过该时长视为“拖动”，否则松手是“点击进入”
-      var PRESS_MS = 380
-      var pressTimer = null
-      var dragging = false
+      // 交互：按下立即进入可拖动状态（主进程轮询搬窗，零首拖延迟）；
+      // 松手时用“位移 + 时长”判定：几乎没动且很快松手 = 点击进入，否则 = 拖动完成。
+      var CLICK_RADIUS = 5   // 松手位移(px)小于该值视为“没拖动”
+      var CLICK_MS = 400     // 按住时长(ms)不超过该值才允许算点击
+      var downX = 0, downY = 0, downT = 0
 
       ring.addEventListener('pointerdown', function (e) {
         if (e.button !== 0) return          // 只处理左键（右键走 contextmenu）
         e.preventDefault()
-        dragging = false
-        clearTimeout(pressTimer)
+        downX = e.clientX; downY = e.clientY; downT = Date.now()
         ring.setPointerCapture(e.pointerId) // 捕获指针：即使指针滑出小球也认得松手
-        pressTimer = setTimeout(function () {
-          dragging = true
-          document.body.classList.add('dragging') // 关闭放大动画
-          window.miniWindow.dragBegin()           // 主进程接管：轮询鼠标搬动窗口
-        }, PRESS_MS)
+        document.body.classList.add('dragging') // 关闭放大动画（拖动全程无重绘开销）
+        window.miniWindow.dragBegin()           // 主进程立即接管：轮询鼠标搬动窗口
       })
 
       ring.addEventListener('pointerup', function (e) {
-        clearTimeout(pressTimer)
-        if (dragging) {
-          dragging = false
-          document.body.classList.remove('dragging')
-          window.miniWindow.dragEnd() // 结束拖动
-          return
-        }
-        window.miniWindow.click()     // 短按 = 点击进入
+        var moved = Math.hypot(e.clientX - downX, e.clientY - downY) > CLICK_RADIUS
+        var quick = (Date.now() - downT) <= CLICK_MS
+        document.body.classList.remove('dragging')
+        window.miniWindow.dragEnd() // 结束轮询（点击和拖动都要收尾）
+        if (!moved && quick) window.miniWindow.click() // 轻点 = 进入
+        // 否则 = 拖动完成，球停在当前位置
       })
 
       ring.addEventListener('pointercancel', function () {
-        clearTimeout(pressTimer)
-        if (dragging) {
-          dragging = false
-          document.body.classList.remove('dragging')
-          window.miniWindow.dragEnd()
-        }
+        document.body.classList.remove('dragging')
+        window.miniWindow.dragEnd()
       })
 
       ring.addEventListener('contextmenu', function (e) {
