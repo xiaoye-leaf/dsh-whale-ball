@@ -606,7 +606,10 @@ function createWindow () {
   window.on('show', () => {
     if (!MINI_BALL_ALWAYS) hideBall()
   })
-  window.on('closed', () => { window = null })
+  // 主窗口被关闭 = 整个应用退出。悬浮球只是最小化时的入口，不能让它
+  // 常驻：否则主窗口销毁后（window = null）点击悬浮球无法恢复窗口，
+  // 而悬浮球不关，应用又不会因“所有窗口关闭”而退出，只能手动杀进程。
+  window.on('closed', () => { window = null; app.quit() })
 }
 
 /** A menu with only what this shell can honestly offer. */
