@@ -7,7 +7,8 @@
 ## ✨ 功能特性
 
 **🐳 桌面悬浮球**（Electron 主进程）
-- 最小化主窗口 → 桌面出现玻璃质感小球（始终置顶、不占任务栏）
+- 最小化主窗口 → 桌面出现**透明玻璃磨砂**小球：白色高光 + 细磨砂噪点 + 玻璃描边，基本不上色、不挡视线（始终置顶、不占任务栏）
+- **干净退出**：关闭主窗口时整个应用（连同悬浮球）一起退出，不会残留"点不动的幽灵小球"
 - **按住球体拖动**（OS 级拖拽），悬停放大
 - **点击球心** → 恢复窗口并进入全屏
 - **右键菜单** → 恢复窗口 / 恢复并全屏 / 隐藏悬浮球 / 退出
@@ -50,6 +51,17 @@
 > powershell -ExecutionPolicy Bypass -File .\install.ps1 -AppDir "D:\你的路径\resources\app"
 > ```
 
+### 已安装旧版？升级或修复
+
+- **换新样式 / 整体升级**：重新运行一次 `install.ps1` 即可。
+- **修复"关闭窗口后悬浮球残留、点击无反应"**：以管理员身份运行补丁脚本 `patch-close.ps1`：
+
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .\patch-close.ps1
+  ```
+
+  该脚本只修改一行（主窗口关闭 → 整个应用退出），重复运行安全。
+
 ### 方式二：手动安装
 
 1. 将 `desktop\main.cjs`、`desktop\mini-preload.cjs`、`desktop\mini-main-preload.cjs` 复制到 DeepSeek Harness 的 `resources\app\` 目录（覆盖 `main.cjs` 前先备份）
@@ -90,6 +102,7 @@ dsh-whale-ball/
 │   ├── mini-preload.cjs   # 小球页面桥接（click / menu）
 │   └── mini-main-preload.cjs  # 主窗口原生桥接（双层全屏）
 ├── install.ps1            # 一键安装脚本（参数化）
+├── patch-close.ps1        # 修复脚本：关闭主窗口时整体退出（防悬浮球残留）
 ├── preview/
 │   └── ball-ui-preview.html   # 悬浮球外观预览
 └── package.json           # 插件 manifest（插件 ID：dsh-mini-window）
@@ -101,6 +114,14 @@ dsh-whale-ball/
 - **事件转发**：插件的 node 端监听 `approval/request`、`session/event`、`agent/status`，通过 stdio IPC 转发给桌面壳
 - **会话轮询**：主进程每 2 秒轮询 `/api/session.list`，检测运行状态边沿（running → idle）触发完成通知，带 3 秒去重
 - **双层全屏**：页面内按钮同时控制 `document.fullscreenElement` 与 Electron `setFullScreen` 两层，退出时两层都退
+
+## 📝 更新记录
+
+- **v1.0.1（当前）**
+  - 透明玻璃磨砂样式：修复透明窗口外围的方形光晕/方框问题
+  - 关闭主窗口时整个应用一起退出：修复悬浮球残留、点击无反应的问题（`patch-close.ps1`）
+  - 安装脚本两处健壮性修复（目录定位、编码兼容）
+- **v1.0.0**：首个版本 —— 桌面悬浮球、智能通知、双层全屏修复
 
 ## 📄 License
 
