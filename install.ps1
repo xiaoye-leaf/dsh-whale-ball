@@ -115,29 +115,46 @@ Write-Host "[2/6] mini-preload.cjs 已写入（小球桥接）" -ForegroundColor
 Copy-Item $srcMainPreload $dstMainPreload -Force
 Write-Host "[3/6] mini-main-preload.cjs 已写入（窗口全屏桥接）" -ForegroundColor Cyan
 
-# ---------- 4. 插件 client.js ----------
+# ---------- 4. 插件本体（自动创建目录 + manifest） ----------
+$srcManifest = Join-Path $Workspace 'package.json'
 if (-not (Test-Path $PluginDir)) {
-    Write-Host "[4/6] WARNING: 插件目录不存在，跳过 client.js: $PluginDir" -ForegroundColor Yellow
-} else {
-    Copy-Item $srcClient $dstClient -Force
-    Write-Host "[4/6] client.js 已替换（双层全屏修复 + 通知）" -ForegroundColor Cyan
+    New-Item -ItemType Directory -Path (Join-Path $PluginDir 'lib') -Force | Out-Null
+    Write-Host "[4/6] 插件目录不存在，已创建: $PluginDir" -ForegroundColor DarkGray
 }
+Copy-Item $srcManifest (Join-Path $PluginDir 'package.json') -Force
+Copy-Item $srcClient $dstClient -Force
+Write-Host "[4/6] 插件已更新（package.json + client.js + index.js）" -ForegroundColor Cyan
+Copy-Item $srcPlugin $dstPlugin -Force
 
-# ---------- 5. 插件 node 端 ----------
-if (-not (Test-Path $PluginDir)) {
-    Write-Host "[5/6] WARNING: 插件目录不存在，跳过 index.js: $PluginDir" -ForegroundColor Yellow
-} else {
-    Copy-Item $srcPlugin $dstPlugin -Force
-    Write-Host "[5/6] lib\index.js 已更新（IPC 转发）" -ForegroundColor Cyan
+# ---------- 5. 同步 profile 依赖副本（cordis require 的解析位置） ----------
+$profilesRoot = Join-Path $env:USERPROFILE '.dsh\profiles'
+$nmPkg = Join-Path $profilesRoot 'node_modules\dsh-mini-window'
+New-Item -ItemType Directory -Path (Join-Path $nmPkg 'lib') -Force | Out-Null
+Copy-Item $srcManifest (Join-Path $nmPkg 'package.json') -Force
+Copy-Item $srcClient (Join-Path $nmPkg 'lib\client.js') -Force
+Copy-Item $srcPlugin (Join-Path $nmPkg 'lib\index.js') -Force
+Write-Host "[5/6] profile 依赖副本已就绪: $nmPkg" -ForegroundColor Cyan
+
+# ---------- 6. 注册 cordis.patch.yml + 清理残留 ----------
+$patchCfg = Join-Path $profilesRoot 'web\cordis.patch.yml'
+$patchInserted = $false
+if (Test-Path $patchCfg) {
+    $hasRef = Select-String -Path $patchCfg -Pattern 'dsh-mini-window' -Quiet
+    if (-not $hasRef) {
+        $block = "`r`n# dsh-mini-window: page fullscreen button + notifications`r`n- insert:`r`n    - id: mini-window`r`n      name: 'dsh-mini-window'`r`n"
+        [System.IO.File]::AppendAllText($patchCfg, $block, (New-Object System.Text.UTF8Encoding($false)))
+        $patchInserted = $true
+    }
 }
-
-# ---------- 6. 清理插件内残留备份 ----------
+if ($patchInserted) {
+    Write-Host "[6/6] 已注册插件到 cordis.patch.yml（重启后页面内按钮生效）" -ForegroundColor Cyan
+} else {
+    Write-Host "[6/6] cordis.patch.yml 无需修改（已注册或不存在）" -ForegroundColor DarkGray
+}
 $pluginBak = Join-Path $PluginDir 'lib\index.js.bak'
 if (Test-Path $pluginBak) {
     Remove-Item $pluginBak -Force
-    Write-Host "[6/6] 已删除插件内残留 index.js.bak" -ForegroundColor Cyan
-} else {
-    Write-Host "[6/6] 无残留备份" -ForegroundColor DarkGray
+    Write-Host "[6/6] 已删除插件内残留 index.js.bak" -ForegroundColor DarkGray
 }
 
 # ---------- 校验 ----------

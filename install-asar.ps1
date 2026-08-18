@@ -137,21 +137,35 @@ try {
     Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-# ---------- 5. 插件 client.js ----------
+# ---------- 5. 插件本体（自动创建目录 + manifest） ----------
+$srcManifest = Join-Path $Workspace 'package.json'
 if (-not (Test-Path $PluginDir)) {
-    Write-Host "[5/6] WARNING: 插件目录不存在，跳过 client.js: $PluginDir" -ForegroundColor Yellow
-    Write-Host "         （小鲸球桌面壳已装好，但页面内全屏按钮需插件目录）" -ForegroundColor Yellow
-} else {
-    Copy-Item $srcClient $dstClient -Force
-    Write-Host "[5/6] client.js 已更新（页面全屏按钮 + 通知）" -ForegroundColor Cyan
+    New-Item -ItemType Directory -Path (Join-Path $PluginDir 'lib') -Force | Out-Null
+    Write-Host "[5/6] 插件目录不存在，已创建: $PluginDir" -ForegroundColor DarkGray
 }
+Copy-Item $srcManifest (Join-Path $PluginDir 'package.json') -Force
+Copy-Item $srcClient $dstClient -Force
+Copy-Item $srcPlugin $dstPlugin -Force
+Write-Host "[5/6] 插件已更新（package.json + client.js + index.js）" -ForegroundColor Cyan
 
-# ---------- 6. 插件 node 端 ----------
-if (-not (Test-Path $PluginDir)) {
-    Write-Host "[6/6] WARNING: 插件目录不存在，跳过 index.js: $PluginDir" -ForegroundColor Yellow
-} else {
-    Copy-Item $srcPlugin $dstPlugin -Force
-    Write-Host "[6/6] lib\index.js 已更新（IPC 转发）" -ForegroundColor Cyan
+# ---------- 6. 同步 profile 依赖副本 + 注册 cordis ----------
+$profilesRoot = Join-Path $env:USERPROFILE '.dsh\profiles'
+$nmPkg = Join-Path $profilesRoot 'node_modules\dsh-mini-window'
+New-Item -ItemType Directory -Path (Join-Path $nmPkg 'lib') -Force | Out-Null
+Copy-Item $srcManifest (Join-Path $nmPkg 'package.json') -Force
+Copy-Item $srcClient (Join-Path $nmPkg 'lib\client.js') -Force
+Copy-Item $srcPlugin (Join-Path $nmPkg 'lib\index.js') -Force
+Write-Host "[6/6] profile 依赖副本已就绪: $nmPkg" -ForegroundColor Cyan
+$patchCfg = Join-Path $profilesRoot 'web\cordis.patch.yml'
+if (Test-Path $patchCfg) {
+    $hasRef = Select-String -Path $patchCfg -Pattern 'dsh-mini-window' -Quiet
+    if (-not $hasRef) {
+        $block = "`r`n# dsh-mini-window: page fullscreen button + notifications`r`n- insert:`r`n    - id: mini-window`r`n      name: 'dsh-mini-window'`r`n"
+        [System.IO.File]::AppendAllText($patchCfg, $block, (New-Object System.Text.UTF8Encoding($false)))
+        Write-Host "[6/6] 已注册插件到 cordis.patch.yml" -ForegroundColor Cyan
+    } else {
+        Write-Host "[6/6] cordis.patch.yml 无需修改（已注册）" -ForegroundColor DarkGray
+    }
 }
 
 # ---------- 完成 ----------

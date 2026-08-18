@@ -69,7 +69,7 @@ AI 会做的事：下载仓库 → 识别 `app.asar`（打包版）还是 `app\m
    - 备份 `app.asar` → `app.asar.bak`
    - 解包，写入 `main.cjs`（悬浮球 + 原生桥接 IPC）、`mini-preload.cjs`、`mini-main-preload.cjs`
    - 语法校验后重新打包回 `app.asar`
-   - 同步插件 `lib\client.js` 与 `lib\index.js`
+   - **自动注册插件**（创建插件目录、同步 profile 依赖副本、写入 `cordis.patch.yml` 引用）——页面内全屏按钮与通知无需手动配置
 3. **重启 DeepSeek Harness**，最小化窗口，小鲸球就出现了！
 
 > 首次运行需联网：脚本用 `npx` 下载 asar 打包工具（`@electron/asar`），等待几十秒属正常，之后会缓存。
@@ -85,7 +85,7 @@ AI 会做的事：下载仓库 → 识别 `app.asar`（打包版）还是 `app\m
 2. 右键 `install.ps1` → **使用 PowerShell 运行**（建议管理员），脚本自动：
    - 备份并替换 `resources\app\main.cjs`（加入桌面悬浮球 + 原生桥接 IPC）
    - 写入 `mini-preload.cjs`（小球页面桥接）与 `mini-main-preload.cjs`（主窗口全屏桥接）
-   - 更新插件 `lib\client.js`（双层全屏修复）与 `lib\index.js`（IPC 转发）
+   - **自动注册插件**：创建插件目录、同步 profile 依赖副本、写入 `cordis.patch.yml` 引用（页面内全屏按钮与通知无需手动配置）
 3. **重启 DeepSeek Harness**，最小化窗口，小鲸球就出现了！
 
 > 若 DeepSeek Harness 不在默认安装路径，请用参数指定：
@@ -191,6 +191,7 @@ dsh-whale-ball/
 - **v1.0.4（当前）**
   - **新增一键卸载脚本 `uninstall.ps1`**：自动识别打包版/解包版，恢复原版桌面壳、清理插件目录（可 `-KeepPlugin` 保留）
   - **卸载更彻底**：同步清理 DSH profile 残留（依赖副本 + cordis 配置引用 + package.json 声明），修复卸载后启动报 `Cannot find package` 的问题
+  - **安装脚本自动注册插件**：创建插件目录、同步 `profiles\node_modules` 依赖副本、写入 `cordis.patch.yml` 引用——页面内全屏按钮与通知开箱即用，无需手动配置
   - README 卸载章节更新：推荐脚本卸载，手动回滚留作备选
 - **v1.0.3**
   - **支持官方打包版（app.asar）安装**：新增 `install-asar.ps1`，自动解包 → 打入悬浮球补丁 → 重新打包，解决"桌面版无法使用"的问题
