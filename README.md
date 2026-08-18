@@ -126,7 +126,20 @@ AI 会做的事：下载仓库 → 识别 `app.asar`（打包版）还是 `app\m
 
 ## ♻️ 卸载 / 回滚
 
-安装脚本都会保留完整备份，按你的版本类型回滚：
+### 方式一：卸载脚本（推荐）
+
+右键 `uninstall.ps1` → **使用 PowerShell 运行**（建议管理员），脚本会自动识别你的版本类型（打包版 / 解包版），恢复原版桌面壳、清理插件目录：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
+```
+
+> 想保留插件目录（只还原桌面壳）？加参数：`-KeepPlugin`
+> 不在默认安装路径？加参数：`-ResourcesDir "D:\你的路径\resources"`
+
+### 方式二：手动回滚（备选）
+
+安装脚本都会保留完整备份，按你的版本类型手动恢复：
 
 **官方打包版（app.asar）**
 1. 退出 DeepSeek Harness
@@ -141,6 +154,8 @@ AI 会做的事：下载仓库 → 识别 `app.asar`（打包版）还是 `app\m
 4. 删除或还原插件目录 `%USERPROFILE%\.dsh\plugins\dsh-mini-window\`
 5. 重启 DeepSeek Harness
 
+> 若还用 `dsh plugin` 命令装过插件本体，可执行 `dsh plugin --profile web remove dsh-mini-window` 一并移除。
+
 ## 📁 目录结构
 
 ```
@@ -154,6 +169,7 @@ dsh-whale-ball/
 │   └── mini-main-preload.cjs  # 主窗口原生桥接（双层全屏）
 ├── install.ps1            # 一键安装脚本（解包/开发版，参数化）
 ├── install-asar.ps1       # 一键安装脚本（官方打包版 app.asar，自动解包+回包）
+├── uninstall.ps1          # 一键卸载脚本（自动识别两种版本，恢复原版）
 ├── patch-close.ps1        # 修复脚本：关闭主窗口时整体退出（防悬浮球残留）
 ├── preview/
 │   └── ball-ui-preview.html   # 悬浮球外观预览
@@ -169,7 +185,10 @@ dsh-whale-ball/
 
 ## 📝 更新记录
 
-- **v1.0.3（当前）**
+- **v1.0.4（当前）**
+  - **新增一键卸载脚本 `uninstall.ps1`**：自动识别打包版/解包版，恢复原版桌面壳、清理插件目录（可 `-KeepPlugin` 保留）
+  - README 卸载章节更新：推荐脚本卸载，手动回滚留作备选
+- **v1.0.3**
   - **支持官方打包版（app.asar）安装**：新增 `install-asar.ps1`，自动解包 → 打入悬浮球补丁 → 重新打包，解决"桌面版无法使用"的问题
   - 安装说明按版本类型分流：打包版用 `install-asar.ps1`，解包/开发版用 `install.ps1`
   - **新增"发给 AI 一句话安装"指令**：复制 README 中的指令发给 AI 助手即可自动安装
