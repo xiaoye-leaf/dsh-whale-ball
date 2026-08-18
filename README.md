@@ -128,7 +128,10 @@ AI 会做的事：下载仓库 → 识别 `app.asar`（打包版）还是 `app\m
 
 ### 方式一：卸载脚本（推荐）
 
-右键 `uninstall.ps1` → **使用 PowerShell 运行**（建议管理员），脚本会自动识别你的版本类型（打包版 / 解包版），恢复原版桌面壳、清理插件目录：
+右键 `uninstall.ps1` → **使用 PowerShell 运行**（建议管理员），脚本会自动识别你的版本类型（打包版 / 解包版）：
+
+- 恢复原版桌面壳（`app.asar` / `main.cjs`）
+- 删除插件目录与 **DSH profile 残留**（`profiles\node_modules` 副本、`cordis.yml` / `cordis.patch.yml` 引用、`package.json` 依赖声明）——避免卸载后 DeepSeek Harness 启动报 `Cannot find package 'dsh-mini-window'`
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
@@ -187,6 +190,7 @@ dsh-whale-ball/
 
 - **v1.0.4（当前）**
   - **新增一键卸载脚本 `uninstall.ps1`**：自动识别打包版/解包版，恢复原版桌面壳、清理插件目录（可 `-KeepPlugin` 保留）
+  - **卸载更彻底**：同步清理 DSH profile 残留（依赖副本 + cordis 配置引用 + package.json 声明），修复卸载后启动报 `Cannot find package` 的问题
   - README 卸载章节更新：推荐脚本卸载，手动回滚留作备选
 - **v1.0.3**
   - **支持官方打包版（app.asar）安装**：新增 `install-asar.ps1`，自动解包 → 打入悬浮球补丁 → 重新打包，解决"桌面版无法使用"的问题
