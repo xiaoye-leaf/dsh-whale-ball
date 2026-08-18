@@ -699,6 +699,12 @@ function createMenu () {
   ]))
 }
 
+// Windows toast notifications require an AppUserModelID; without it
+// Electron notifications fail silently. Set one before app ready.
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.deepseek.harness.desktop')
+}
+
 if (!app.requestSingleInstanceLock()) app.quit()
 else {
   app.on('second-instance', () => {
