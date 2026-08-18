@@ -36,6 +36,21 @@
 | DeepSeek Harness 桌面版 | 已安装且能正常运行 |
 | Node.js ≥ 18 | 安装脚本会做语法校验 |
 
+### 方式零：复制给 AI，一句话自动安装（最省事）
+
+不想自己跑脚本？把下面**整段**复制，发给你的 AI 助手（比如 DeepSeek Harness 会话），它就会自动判断版本、下载补丁并完成安装：
+
+```text
+请帮我安装「小鲸球」(dsh-whale-ball) 插件。
+
+1. 先下载仓库：用 git clone https://github.com/xiaoye-leaf/dsh-whale-ball.git 或下载 https://github.com/xiaoye-leaf/dsh-whale-ball/archive/refs/heads/main.zip 并解压到临时目录（网络不通时请先让我开代理/VPN，不要用非官方镜像）。
+2. 判断版本：查看 DeepSeek Harness 安装目录的 resources 文件夹（常见：D:\deepseek\DeepSeek Harness\resources、C:\Program Files\DeepSeek Harness\resources）——存在 app.asar 文件 → 官方打包版，运行仓库里的 install-asar.ps1；存在 app 文件夹且里面有 main.cjs → 解包/开发版，运行 install.ps1。路径不对时用 -ResourcesDir / -AppDir 参数指定，找不到安装目录就先问我。
+3. 运行前提：我已退出 DeepSeek Harness；Node.js ≥ 18；npx 能联网（首次下载 asar 工具需等待几十秒）。
+4. 完成后提醒我重启 DeepSeek Harness 并最小化窗口验证小鲸球出现；任何一步失败请停下报告，不要修改除安装文件以外的任何内容。
+```
+
+AI 会做的事：下载仓库 → 识别 `app.asar`（打包版）还是 `app\main.cjs`（解包版）→ 运行对应脚本（自动备份、打入悬浮球补丁、重新打包、同步插件）→ 校验语法后提示重启。
+
 ### 第一步：确认你的桌面版是哪种
 
 打开 DeepSeek Harness 安装目录下的 `resources` 文件夹（默认 `D:\deepseek\DeepSeek Harness\resources` 或 `C:\Program Files\DeepSeek Harness\resources`）：
@@ -157,6 +172,7 @@ dsh-whale-ball/
 - **v1.0.3（当前）**
   - **支持官方打包版（app.asar）安装**：新增 `install-asar.ps1`，自动解包 → 打入悬浮球补丁 → 重新打包，解决"桌面版无法使用"的问题
   - 安装说明按版本类型分流：打包版用 `install-asar.ps1`，解包/开发版用 `install.ps1`
+  - **新增"发给 AI 一句话安装"指令**：复制 README 中的指令发给 AI 助手即可自动安装
 - **v1.0.2**
   - 拖动体验全面优化：**按下即拖**（取消 380ms 长按等待，首拖零延迟），主进程 **4ms 高频轮询**搬窗（消除拖动瞬间卡顿、快速甩动不掉队）
   - **整球可交互**：中心 logo 装饰层不再拦截指针事件，整个球都能点击/拖动
