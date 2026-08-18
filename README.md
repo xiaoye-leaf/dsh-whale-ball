@@ -36,17 +36,42 @@
 | DeepSeek Harness 桌面版 | 已安装且能正常运行 |
 | Node.js ≥ 18 | 安装脚本会做语法校验 |
 
-### 方式一：一键安装脚本（推荐）
+### 第一步：确认你的桌面版是哪种
 
-> 安装前请先**退出 DeepSeek Harness**。
+打开 DeepSeek Harness 安装目录下的 `resources` 文件夹（默认 `D:\deepseek\DeepSeek Harness\resources` 或 `C:\Program Files\DeepSeek Harness\resources`）：
 
-右键 `install.ps1` → **使用 PowerShell 运行**（管理员运行更稳妥），脚本会自动：
+| 你看到的是 | 类型 | 用哪个脚本 |
+| --- | --- | --- |
+| `app.asar` 文件（没有 `app` 文件夹） | 官方打包版（大多数用户） | `install-asar.ps1` |
+| `app` 文件夹（里面有 `main.cjs`） | 解包/开发版 | `install.ps1` |
 
-1. 备份并替换 `resources\app\main.cjs`（加入桌面悬浮球 + 原生桥接 IPC）
-2. 写入 `mini-preload.cjs`（小球页面桥接）与 `mini-main-preload.cjs`（主窗口全屏桥接）
-3. 更新插件 `lib\client.js`（双层全屏修复）与 `lib\index.js`（IPC 转发）
+### 方式一：官方打包版（app.asar）——推荐大多数用户
 
-完成后**重启 DeepSeek Harness**，最小化窗口，小鲸球就出现了！
+> 官方安装包把桌面壳打包成 `resources\app.asar` 单文件，不能直接改文件。`install-asar.ps1` 会自动完成 **解包 → 打入小鲸球补丁 → 重新打包**，全程无需手动处理 asar。
+
+1. 安装前先**退出 DeepSeek Harness**
+2. 右键 `install-asar.ps1` → **使用 PowerShell 运行**（建议管理员），脚本自动：
+   - 备份 `app.asar` → `app.asar.bak`
+   - 解包，写入 `main.cjs`（悬浮球 + 原生桥接 IPC）、`mini-preload.cjs`、`mini-main-preload.cjs`
+   - 语法校验后重新打包回 `app.asar`
+   - 同步插件 `lib\client.js` 与 `lib\index.js`
+3. **重启 DeepSeek Harness**，最小化窗口，小鲸球就出现了！
+
+> 首次运行需联网：脚本用 `npx` 下载 asar 打包工具（`@electron/asar`），等待几十秒属正常，之后会缓存。
+>
+> 若不在默认安装路径：
+> ```powershell
+> powershell -ExecutionPolicy Bypass -File .\install-asar.ps1 -ResourcesDir "D:\你的路径\resources"
+> ```
+
+### 方式二：解包/开发版（resources\app 目录）
+
+1. 安装前先**退出 DeepSeek Harness**
+2. 右键 `install.ps1` → **使用 PowerShell 运行**（建议管理员），脚本自动：
+   - 备份并替换 `resources\app\main.cjs`（加入桌面悬浮球 + 原生桥接 IPC）
+   - 写入 `mini-preload.cjs`（小球页面桥接）与 `mini-main-preload.cjs`（主窗口全屏桥接）
+   - 更新插件 `lib\client.js`（双层全屏修复）与 `lib\index.js`（IPC 转发）
+3. **重启 DeepSeek Harness**，最小化窗口，小鲸球就出现了！
 
 > 若 DeepSeek Harness 不在默认安装路径，请用参数指定：
 > ```powershell
@@ -55,8 +80,8 @@
 
 ### 已安装旧版？升级或修复
 
-- **换新样式 / 整体升级**：重新运行一次 `install.ps1` 即可。
-- **修复"关闭窗口后悬浮球残留、点击无反应"**：以管理员身份运行补丁脚本 `patch-close.ps1`：
+- **换新样式 / 整体升级**：按你的版本类型重新运行一次对应脚本（打包版用 `install-asar.ps1`，解包版用 `install.ps1`）即可，重复运行安全。
+- **修复"关闭窗口后悬浮球残留、点击无反应"**（仅旧版本、解包版需要；新版本已内置该修复）：以管理员身份运行补丁脚本 `patch-close.ps1`：
 
   ```powershell
   powershell -ExecutionPolicy Bypass -File .\patch-close.ps1
@@ -64,7 +89,9 @@
 
   该脚本只修改一行（主窗口关闭 → 整个应用退出），重复运行安全。
 
-### 方式二：手动安装
+### 方式三：手动安装（仅解包版）
+
+> 官方打包版（app.asar）无法手动改文件，请用方式一脚本。
 
 1. 将 `desktop\main.cjs`、`desktop\mini-preload.cjs`、`desktop\mini-main-preload.cjs` 复制到 DeepSeek Harness 的 `resources\app\` 目录（覆盖 `main.cjs` 前先备份）
 2. 将 `lib\` 下的文件复制到插件目录 `%USERPROFILE%\.dsh\plugins\dsh-mini-window\lib\`
@@ -84,8 +111,15 @@
 
 ## ♻️ 卸载 / 回滚
 
-安装脚本会保留备份 `main.cjs.bak`：
+安装脚本都会保留完整备份，按你的版本类型回滚：
 
+**官方打包版（app.asar）**
+1. 退出 DeepSeek Harness
+2. 将 `resources\app.asar.bak` 复制回 `resources\app.asar`（覆盖）
+3. 删除或还原插件目录 `%USERPROFILE%\.dsh\plugins\dsh-mini-window\`
+4. 重启 DeepSeek Harness
+
+**解包/开发版（resources\app 目录）**
 1. 退出 DeepSeek Harness
 2. 将 `resources\app\main.cjs.bak` 复制回 `resources\app\main.cjs`
 3. 删除 `mini-preload.cjs`、`mini-main-preload.cjs`
@@ -103,7 +137,8 @@ dsh-whale-ball/
 │   ├── main.cjs           # Electron 主进程：悬浮球窗口 + 通知 + 会话轮询
 │   ├── mini-preload.cjs   # 小球页面桥接（click / menu / dragBegin / dragEnd）
 │   └── mini-main-preload.cjs  # 主窗口原生桥接（双层全屏）
-├── install.ps1            # 一键安装脚本（参数化）
+├── install.ps1            # 一键安装脚本（解包/开发版，参数化）
+├── install-asar.ps1       # 一键安装脚本（官方打包版 app.asar，自动解包+回包）
 ├── patch-close.ps1        # 修复脚本：关闭主窗口时整体退出（防悬浮球残留）
 ├── preview/
 │   └── ball-ui-preview.html   # 悬浮球外观预览
@@ -119,7 +154,10 @@ dsh-whale-ball/
 
 ## 📝 更新记录
 
-- **v1.0.2（当前）**
+- **v1.0.3（当前）**
+  - **支持官方打包版（app.asar）安装**：新增 `install-asar.ps1`，自动解包 → 打入悬浮球补丁 → 重新打包，解决"桌面版无法使用"的问题
+  - 安装说明按版本类型分流：打包版用 `install-asar.ps1`，解包/开发版用 `install.ps1`
+- **v1.0.2**
   - 拖动体验全面优化：**按下即拖**（取消 380ms 长按等待，首拖零延迟），主进程 **4ms 高频轮询**搬窗（消除拖动瞬间卡顿、快速甩动不掉队）
   - **整球可交互**：中心 logo 装饰层不再拦截指针事件，整个球都能点击/拖动
   - **恢复即隐藏**：从最小化恢复主窗口时悬浮球自动消失，不再挡页面

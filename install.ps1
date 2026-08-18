@@ -48,8 +48,18 @@ $appCandidates = @(
 
 if ($appCandidates.Count -eq 0) {
     Write-Host "ERROR: 未找到 DeepSeek Harness 的 resources\app 目录。" -ForegroundColor Red
-    Write-Host "请用 -AppDir 参数指定，例如：" -ForegroundColor Yellow
-    Write-Host "  powershell -ExecutionPolicy Bypass -File .\install.ps1 -AppDir ""D:\你的路径\resources\app""" -ForegroundColor Yellow
+    $resCandidates = @(
+        'D:\deepseek\DeepSeek Harness\resources',
+        'C:\Program Files\DeepSeek Harness\resources',
+        'C:\Program Files (x86)\DeepSeek Harness\resources'
+    ) | Where-Object { Test-Path (Join-Path $_ 'app.asar') }
+    if ($resCandidates.Count -gt 0) {
+        Write-Host "检测到你的桌面版是官方打包版（app.asar），请改用 install-asar.ps1：" -ForegroundColor Yellow
+        Write-Host "  powershell -ExecutionPolicy Bypass -File .\install-asar.ps1" -ForegroundColor Yellow
+    } else {
+        Write-Host "请用 -AppDir 参数指定，例如：" -ForegroundColor Yellow
+        Write-Host "  powershell -ExecutionPolicy Bypass -File .\install.ps1 -AppDir ""D:\你的路径\resources\app""" -ForegroundColor Yellow
+    }
     exit 1
 }
 # 注意：候选过滤后只剩一个元素时会被解包成标量，[0] 会取到字符串首字符，
