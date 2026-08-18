@@ -22,10 +22,23 @@
 
 const { app, BrowserWindow, Menu, dialog, shell, ipcMain, Notification, screen } = require('electron')
 const { spawn } = require('node:child_process')
-const { existsSync, mkdirSync } = require('node:fs')
+const { existsSync, mkdirSync, appendFileSync } = require('node:fs')
 const path = require('node:path')
 
 const PRODUCT_NAME = 'DeepSeek Harness'
+
+// ---------------------------------------------------------------------------
+// Diagnostics: append-only log next to the user's .dsh config. Lets the main
+// process record every notification attempt and every renderer console line
+// so notification failures can be traced without a DevTools session.
+// ---------------------------------------------------------------------------
+const DIAG_FILE = path.join(process.env.USERPROFILE || '.', '.dsh', 'dsh-mini-window-diag.log')
+/** Append one line to the diagnostics log (never throws). */
+function diag (...parts) {
+  try {
+    appendFileSync(DIAG_FILE, `[${new Date().toISOString()}] ${parts.join(' ')}\n`)
+  } catch { /* log must never break the app */ }
+}
 /** The URL line `dsh web` prints once its `/api` route owner has mounted. */
 const READY_PATTERN = /https?:\/\/127\.0\.0\.1:\d+/
 /** How long the shell waits for that line before reporting a failed boot. */
@@ -505,12 +518,20 @@ function mainWindowIsAway () {
 
 /** Raise a native notification and, on click, restore the window. */
 function miniNotify (title, body) {
+  diag('miniNotify called:', title, '| supported =', Notification.isSupported(), '| windowAway =', mainWindowIsAway())
   if (!Notification.isSupported()) return
-  const n = new Notification({ title, body, silent: false })
-  n.on('click', () => {
-    restoreMainWindow(false)
-  })
-  n.show()
+  try {
+    const n = new Notification({ title, body, silent: false })
+    n.on('click', () => {
+      restoreMainWindow(false)
+    })
+    n.on('show', () => diag('miniNotify SHOW event:', title))
+    n.on('failed', (_e, err) => diag('miniNotify FAILED event:', String(err?.message ?? err)))
+    n.show()
+    diag('miniNotify shown OK:', title)
+  } catch (e) {
+    diag('miniNotify THREW:', String(e?.message ?? e))
+  }
 }
 
 /**
@@ -539,13 +560,18 @@ function handleMiniIpc (message) {
       const title = labels[kind] || '任务结束'
       const who = message.title ? `「${message.title}」` : ''
       const sid = message.sessionId || ''
+      diag('IPC turn-end:', kind, '| sid =', sid, '| windowAway =', mainWindowIsAway())
       const last = miniNotifiedAt.get(sid) ?? 0
       const nowMs = Date.now()
       if (nowMs - last >= MINI_NOTIFY_DEDUPE_MS) {
         miniNotifiedAt.set(sid, nowMs)
         if (mainWindowIsAway()) {
           miniNotify(title, `${who}运行结束。`)
+        } else {
+          diag('turn-end skipped: main window is visible (page-level notification should handle it)')
         }
+      } else {
+        diag('turn-end skipped: dedupe window')
       }
       break
     }
@@ -597,8 +623,11 @@ async function pollSessions () {
         const nowMs = Date.now()
         if (nowMs - last >= MINI_NOTIFY_DEDUPE_MS) {
           miniNotifiedAt.set(id, nowMs)
+          diag('pollSessions completion edge:', id, '| windowAway =', mainWindowIsAway())
           if (mainWindowIsAway()) {
             miniNotify(`${PRODUCT_NAME} 任务完成`, `会话已完成运行。`)
+          } else {
+            diag('pollSessions edge skipped: main window visible')
           }
         }
       }
@@ -765,6 +794,11 @@ else {
       const url = await startHarness()
       harnessUrl = url
       await window?.loadURL(url)
+      // Forward every renderer console line into the diagnostics log so
+      // page-level notification failures are visible without DevTools.
+      window?.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+        diag(`[renderer:${level}] ${message}`, `(${sourceId}:${line})`)
+      })
       // Keep polling the harness API while the app lives.
       setInterval(() => { void pollSessions() }, MINI_POLL_MS)
     } catch (error) {

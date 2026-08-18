@@ -1,7 +1,7 @@
 {
   "name": "dsh-mini-window",
   "description": "小鲸球 (dsh-whale-ball)：DeepSeek Harness 桌面悬浮球插件 —— 最小化主窗口后出现可拖动的玻璃质感小球，点击恢复全屏，任务完成或需要确认时弹出系统通知；同时提供页面内全屏切换按钮（双层全屏修复）。",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
